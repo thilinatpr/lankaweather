@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postcss:watch": "postcss src/styles/globals.css -o public/styles/output.css --watch",
+    "postcss:build": "postcss src/styles/globals.css -o public/styles/output.css"
   },
   "dependencies": {
     "react": "^19.0.0",
