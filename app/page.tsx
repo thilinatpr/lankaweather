@@ -9,10 +9,9 @@ import OfflineSection from '@/components/OfflineSection';
 import { AlertProvider, useAlerts } from '@/contexts/AlertContext';
 
 function MainContent() {
-  const { alerts, dismissAlert, addAlert } = useAlerts();
+  const { alerts, dismissAlert, addAlert, isLoading } = useAlerts();
 
   const handleAddTestAlert = () => {
-    // Array of different test alerts to cycle through
     const testAlerts = [
       {
         type: 'high' as const,
@@ -31,7 +30,6 @@ function MainContent() {
       }
     ];
 
-    // Pick a random alert from the array
     const randomAlert = testAlerts[Math.floor(Math.random() * testAlerts.length)];
     addAlert(randomAlert);
   };
@@ -42,13 +40,17 @@ function MainContent() {
       <div className="mb-4">
         <button
           onClick={handleAddTestAlert}
-          className="bg-primary text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
         >
           <i className="fas fa-plus mr-2"></i>
           Add Test Alert
         </button>
       </div>
-      <AlertBanner alerts={alerts} onDismiss={dismissAlert} />
+      <AlertBanner 
+        alerts={alerts} 
+        onDismiss={dismissAlert} 
+        isLoading={isLoading} 
+      />
       <TripPlanner />
       <WeatherDisplay />
       <OfflineSection />
