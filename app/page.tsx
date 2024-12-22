@@ -10,7 +10,7 @@ import OfflineSection from '@/components/OfflineSection';
 import { AlertProvider, useAlerts } from '@/contexts/AlertContext';
 
 function MainContent() {
-  const { alerts, dismissAlert, addAlert, isLoading } = useAlerts();
+  const { alerts, dismissAlert, isLoading } = useAlerts();
 
 
   return (
