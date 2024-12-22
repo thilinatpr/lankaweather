@@ -51,14 +51,33 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
 
     // Initialize Pusher
     const pusher = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+      enabledTransports: ['ws','wss'],
     });
     
+      // Add console logs for debugging
+    pusher.connection.bind('connected', () => {
+      console.log('Connected to Pusher');
+    });
+
+    pusher.connection.bind('error', (err: any) => {
+      console.error('Pusher connection error:', err);
+    });
     const channel = pusher.subscribe('alerts');
-    
+
     channel.bind('new-alert', (newAlert: Alert) => {
+      console.log('Received new alert:', newAlert);
       setAlerts(prev => [newAlert, ...prev]);
     });
+
+    channel.bind('pusher:subscription_succeeded', () => {
+      console.log('Successfully subscribed to alerts channel');
+    });
+
+    channel.bind('pusher:subscription_error', (error: any) => {
+      console.error('Subscription error:', error);
+    });
+
 
     return () => {
       channel.unbind_all();
