@@ -1,18 +1,27 @@
 // contexts/AlertContext.tsx
 'use client'
 
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Alert } from '@/types/db';
+import PusherClient from 'pusher-js';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+
+interface Alert {
+  id: string;
+  type: 'high' | 'medium' | 'low';
+  message: string;
+  icon: string;
+  status: 'draft' | 'published' | 'archived';
+  created_at: number;
+}
 
 interface AlertContextType {
   alerts: Alert[];
   dismissAlert: (id: string) => void;
   addAlert: (alert: Omit<Alert, 'id' | 'created_at' | 'status'>) => void;
   isLoading: boolean;
-  error: string | null;
+  error: Error | null;
 }
 
-const AlertContext = createContext<AlertContextType | null>(null);
+const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
 export function useAlerts() {
   const context = useContext(AlertContext);
@@ -25,64 +34,68 @@ export function useAlerts() {
 export function AlertProvider({ children }: { children: React.ReactNode }) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchAlerts = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response = await fetch('/api/alerts');
-      if (!response.ok) {
-        throw new Error('Failed to fetch alerts');
-      }
-      const data = await response.json();
-      setAlerts(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch alerts');
-      console.error('Error fetching alerts:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    fetchAlerts();
+    // Initial fetch of alerts
+    fetch('/api/alerts')
+      .then(res => res.json())
+      .then(data => {
+        setAlerts(data);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        setError(err);
+        setIsLoading(false);
+      });
+
+    // Initialize Pusher
+    const pusher = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!
+    });
+    
+    const channel = pusher.subscribe('alerts');
+    
+    channel.bind('new-alert', (newAlert: Alert) => {
+      setAlerts(prev => [newAlert, ...prev]);
+    });
+
+    return () => {
+      channel.unbind_all();
+      channel.unsubscribe();
+    };
   }, []);
 
-  const dismissAlert = useCallback(async (id: string) => {
-    try {
-      await fetch(`/api/alerts/${id}`, { method: 'DELETE' });
-      setAlerts(currentAlerts => currentAlerts.filter(alert => alert.id !== id));
-    } catch (err) {
-      console.error('Error dismissing alert:', err);
-    }
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts(prev => prev.filter(alert => alert.id !== id));
   }, []);
 
   const addAlert = useCallback(async (alert: Omit<Alert, 'id' | 'created_at' | 'status'>) => {
     try {
       const response = await fetch('/api/alerts', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(alert),
       });
-
+      
       if (!response.ok) {
         throw new Error('Failed to add alert');
       }
-
-      // Refresh alerts after adding new one
-      fetchAlerts();
+      // Actual addition will be handled by Pusher event
     } catch (err) {
       console.error('Error adding alert:', err);
+      setError(err instanceof Error ? err : new Error('Failed to add alert'));
     }
   }, []);
 
   return (
-    <AlertContext.Provider 
-      value={{ alerts, dismissAlert, addAlert, isLoading, error }}
-    >
+    <AlertContext.Provider value={{ 
+      alerts, 
+      dismissAlert, 
+      addAlert, 
+      isLoading, 
+      error 
+    }}>
       {children}
     </AlertContext.Provider>
   );

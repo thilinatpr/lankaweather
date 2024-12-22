@@ -1,6 +1,7 @@
 // app/api/alerts/route.ts
 import { NextResponse } from 'next/server';
 import { turso } from '@/lib/turso';
+import { pusher } from '@/lib/pusher';
 
 export async function GET() {
   try {
@@ -10,12 +11,12 @@ export async function GET() {
         WHERE status = 'published'
         ORDER BY created_at DESC
       `,
-      args: [] // Add empty args array for the type requirement
+      args: []
     });
-   
+    
     return NextResponse.json(result.rows);
-  } catch (error) {
-    console.error('Database error:', error);
+  } catch (err) {
+    console.error('Failed to fetch alerts:', err);
     return NextResponse.json(
       { error: 'Failed to fetch alerts' },
       { status: 500 }
@@ -27,25 +28,25 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { type, message, icon } = body;
-   
+    
+    const id = crypto.randomUUID();
+    const timestamp = Math.floor(Date.now() / 1000);
+
     await turso.execute({
       sql: `
         INSERT INTO alerts (id, type, message, icon, status, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `,
-      args: [
-        crypto.randomUUID(),
-        type,
-        message,
-        icon,
-        'published',
-        Math.floor(Date.now() / 1000)
-      ]
+      args: [id, type, message, icon, 'published', timestamp]
     });
+
+    const newAlert = { id, type, message, icon, status: 'published', created_at: timestamp };
+    
+    await pusher.trigger('alerts', 'new-alert', newAlert);
    
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Database error:', error);
+  } catch (err) {
+    console.error('Failed to create alert:', err);
     return NextResponse.json(
       { error: 'Failed to create alert' },
       { status: 500 }
