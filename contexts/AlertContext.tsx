@@ -41,10 +41,16 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     fetch('/api/alerts')
       .then(res => res.json())
       .then(data => {
-        setAlerts(data);
+        if (Array.isArray(data)) {
+          console.log('Initial alerts loaded:', data);
+          setAlerts(data);
+        } else {
+          console.error('Invalid alert data format:', data);
+        }
         setIsLoading(false);
       })
       .catch(err => {
+        console.error('Failed to fetch alerts:', err);
         setError(err);
         setIsLoading(false);
       });
@@ -52,10 +58,10 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     // Initialize Pusher
     const pusher = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-      enabledTransports: ['ws','wss'],
+      enabledTransports: ['ws', 'wss'],
     });
-    
-      // Add console logs for debugging
+
+    // Add connection debugging
     pusher.connection.bind('connected', () => {
       console.log('Connected to Pusher');
     });
@@ -63,30 +69,44 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     pusher.connection.bind('error', (err: any) => {
       console.error('Pusher connection error:', err);
     });
+
     const channel = pusher.subscribe('alerts');
 
+    // Handle new alerts
     channel.bind('new-alert', (newAlert: Alert) => {
       console.log('Received new alert:', newAlert);
-      setAlerts(prev => [newAlert, ...prev]);
-    });
-	
-	    // Add binding for delete events from admin
-	// Add this to your delete-alert binding
-	channel.bind('delete-alert', (deletedId: string) => {
-	  console.log('Received delete alert:', deletedId);
-	  console.log('Current alerts:', alerts);  // Log current alerts
-	  setAlerts(prev => {
-		console.log('Alert IDs:', prev.map(a => a.id));  // Log all alert IDs
-		console.log('Deleted ID type:', typeof deletedId);  // Check ID type
-		console.log('Sample alert ID type:', typeof prev[0]?.id);  // Check alert ID type
-		return prev.filter(alert => {
-		  const matches = alert.id !== deletedId;
-		  console.log(`Comparing ${alert.id} with ${deletedId}: ${matches}`);  // Log each comparison
-		  return matches;
-		});
-	  });
-	});
+      if (!newAlert || !newAlert.id) {
+        console.error('Invalid new alert data:', newAlert);
+        return;
+      }
 
+      setAlerts(prev => {
+        const updatedAlerts = [newAlert, ...prev];
+        console.log('Updated alerts after adding:', updatedAlerts);
+        return updatedAlerts;
+      });
+    });
+
+    // Handle alert deletions
+    channel.bind('delete-alert', (deleteData: { id: string }) => {
+      console.log('Received delete alert:', deleteData);
+      if (!deleteData || !deleteData.id) {
+        console.error('Invalid delete data:', deleteData);
+        return;
+      }
+
+      setAlerts(prev => {
+        const updatedAlerts = prev.filter(alert => {
+          const shouldKeep = alert.id !== deleteData.id;
+          console.log(`Comparing alert ${alert.id} with deleted ${deleteData.id}: keep=${shouldKeep}`);
+          return shouldKeep;
+        });
+        console.log('Updated alerts after deletion:', updatedAlerts);
+        return updatedAlerts;
+      });
+    });
+
+    // Subscription handling
     channel.bind('pusher:subscription_succeeded', () => {
       console.log('Successfully subscribed to alerts channel');
     });
@@ -95,7 +115,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
       console.error('Subscription error:', error);
     });
 
-
+    // Cleanup
     return () => {
       channel.unbind_all();
       channel.unsubscribe();
