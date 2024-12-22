@@ -39,7 +39,7 @@ export default function AlertBanner({
     setExpandedAlertId(expandedAlertId === id ? null : id);
   };
 
-  const getAlertClass = (type: Alert['type']) => {
+  /*const getAlertClass = (type: Alert['type']) => {
     const baseClasses = 'alert-banner mb-2 rounded-lg shadow-md transition-all duration-300';
     const typeClasses = {
       high: 'bg-red-600',
@@ -47,7 +47,7 @@ export default function AlertBanner({
       low: 'bg-yellow-500'
     };
     return `${baseClasses} ${typeClasses[type]}`;
-  };
+  };*/
 
   if (error) {
     return (
