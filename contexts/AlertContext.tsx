@@ -71,10 +71,21 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     });
 	
 	    // Add binding for delete events from admin
-    channel.bind('delete-alert', (deletedId: string) => {
-      console.log('Received delete alert:', deletedId);
-      setAlerts(prev => prev.filter(alert => alert.id !== deletedId));
-    });
+	// Add this to your delete-alert binding
+	channel.bind('delete-alert', (deletedId: string) => {
+	  console.log('Received delete alert:', deletedId);
+	  console.log('Current alerts:', alerts);  // Log current alerts
+	  setAlerts(prev => {
+		console.log('Alert IDs:', prev.map(a => a.id));  // Log all alert IDs
+		console.log('Deleted ID type:', typeof deletedId);  // Check ID type
+		console.log('Sample alert ID type:', typeof prev[0]?.id);  // Check alert ID type
+		return prev.filter(alert => {
+		  const matches = alert.id !== deletedId;
+		  console.log(`Comparing ${alert.id} with ${deletedId}: ${matches}`);  // Log each comparison
+		  return matches;
+		});
+	  });
+	});
 
     channel.bind('pusher:subscription_succeeded', () => {
       console.log('Successfully subscribed to alerts channel');
