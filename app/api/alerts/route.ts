@@ -41,9 +41,9 @@ export async function POST(request: Request) {
     });
 
     const newAlert = { id, type, message, icon, status: 'published', created_at: timestamp };
-    
+    console.log('Triggering Pusher event with:', newAlert); // Add this log
     await pusher.trigger('alerts', 'new-alert', newAlert);
-   
+    console.log('Pusher event triggered successfully'); // Add this log
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Failed to create alert:', err);
